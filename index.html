@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="images/01062026.png">
+  <title>Ransomware Feed</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:     #EBD5AB;
+      --dim:       #8BAE66;
+      --dark:      #4A6330;
+      --bg:        #0B0F0A;
+      --bg1:       #0F1510;
+      --amber:     #D4A853;
+      --red:       #D4704A;
+      --cyan:      #A8C88A;
+      --is:        #C97BAF;
+      --grid-line: rgba(235,213,171,0.045);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--green);
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent 0px, transparent 2px,
+        rgba(0,0,0,0.13) 2px, rgba(0,0,0,0.13) 4px
+      );
+      pointer-events: none;
+      z-index: 9000;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,0.82) 100%);
+      pointer-events: none;
+      z-index: 9001;
+    }
+
+    @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    @keyframes row-in    { to { opacity:1; transform:translateX(0); } }
+    @keyframes pulse-is  { 0%,100%{text-shadow:0 0 8px var(--is)} 50%{text-shadow:none} }
+    @keyframes scroll-ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--dark);
+      background: linear-gradient(180deg, var(--bg1) 0%, var(--bg) 100%);
+      flex-shrink: 0;
+    }
+
+    .tb-title {
+      font-size: 0.88em;
+      letter-spacing: 0.48em;
+      color: var(--green);
+      text-shadow: 0 0 18px rgba(235,213,171,0.4);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tb-title span { color: var(--dim); }
+    .tb-sep { color: var(--dark); flex-shrink: 0; }
+
+    .f-tag {
+      font-size: 0.6em;
+      letter-spacing: 0.35em;
+      color: var(--bg);
+      background: var(--dim);
+      padding: 2px 7px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .f-input {
+      font-family: inherit;
+      font-size: 0.68em;
+      background: transparent;
+      border: 1px solid var(--dark);
+      color: var(--green);
+      padding: 2px 8px;
+      width: 165px;
+      letter-spacing: 0.08em;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .f-input:focus { border-color: var(--dim); }
+    .f-input::placeholder { color: var(--dark); letter-spacing: 0.15em; }
+
+    .f-sep { color: var(--dark); font-size: 0.8em; flex-shrink: 0; }
+
+    .f-select {
+      font-family: inherit;
+      font-size: 0.7em;
+      background: var(--bg);
+      border: 1px solid var(--dark);
+      color: var(--dim);
+      padding: 2px 6px;
+      outline: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      max-width: 138px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .f-select:focus { border-color: var(--dim); }
+    .f-select.active { border-color: var(--amber); color: var(--amber); }
+
+    .f-btn {
+      font-family: inherit;
+      font-size: 0.65em;
+      letter-spacing: 0.3em;
+      padding: 2px 9px;
+      border: 1px solid var(--dark);
+      color: var(--dim);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.12s, border-color 0.12s;
+    }
+
+    .f-btn:hover { color: var(--red); border-color: var(--red); }
+
+    .f-count {
+      font-size: 0.63em;
+      color: var(--dim);
+      letter-spacing: 0.2em;
+      margin-left: auto;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .f-count.filtered { color: var(--amber); text-shadow: 0 0 6px rgba(212,168,83,0.4); }
+
+    .tb-src {
+      font-size: 0.58em;
+      letter-spacing: 0.18em;
+      color: var(--dark);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── LAYOUT ── */
+    .body-wrap {
+      display: flex;
+      height: calc(100vh - 86px);
+    }
+
+    /* ── FEED PANEL ── */
+    .feed-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--dark);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ── PANEL LABEL ── */
+    .panel-label {
+      font-size: 0.6em;
+      letter-spacing: 0.32em;
+      color: var(--dim);
+      padding: 6px 18px 5px;
+      border-bottom: 1px solid var(--dark);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg1);
+    }
+
+    .panel-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--dark), transparent);
+    }
+
+    .panel-label-note { color: var(--dark); }
+    .panel-label-note.on { color: var(--amber); text-shadow: 0 0 6px rgba(212,168,83,0.35); }
+
+    /* ── STAT RIBBON ── */
+    .stat-ribbon {
+      height: 54px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--dark);
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+      background: var(--bg1);
+    }
+
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 13px;
+      border-right: 1px solid var(--dark);
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .stat-chip.grow   { flex: 1; border-right: none; min-width: 80px; }
+    .stat-chip.group  { max-width: 150px; }
+    .stat-chip.sector { max-width: 168px; }
+
+    .sc-label { font-size: 0.55em; letter-spacing: 0.3em; color: var(--dark); white-space: nowrap; }
+
+    .sc-val {
+      font-size: 1.06em;
+      color: var(--green);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.1;
+    }
+
+    .sc-val.amber { color: var(--amber); }
+    .sc-val.red   { color: var(--red); text-shadow: 0 0 8px rgba(212,112,74,0.5); }
+    .sc-val.cyan  { color: var(--cyan); }
+    .sc-val.dim   { color: var(--dim); }
+    .sc-val.sm    { font-size: 0.82em; }
+    .sc-val.xs    { font-size: 0.72em; }
+    .sc-sub       { font-size: 0.55em; color: var(--dark); }
+
+    /* ── COLUMNS ── */
+    .col-heads {
+      display: grid;
+      grid-template-columns: 70px 1fr 128px 108px 64px 30px;
+      gap: 8px;
+      font-size: 0.6em;
+      letter-spacing: 0.32em;
+      color: var(--dark);
+      padding: 5px 18px 4px;
+      border-bottom: 1px solid var(--dark);
+      flex-shrink: 0;
+      background: var(--bg1);
+    }
+
+    .victim-scroll { flex: 1; overflow: hidden; position: relative; }
+
+    .victim-list {
+      position: absolute; inset: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--dark) transparent;
+      padding: 0 18px;
+    }
+
+    .victim-list::-webkit-scrollbar { width: 3px; }
+    .victim-list::-webkit-scrollbar-track { background: transparent; }
+    .victim-list::-webkit-scrollbar-thumb { background: var(--dark); }
+
+    .victim-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 128px 108px 64px 30px;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--grid-line);
+      font-size: 0.82em;
+      align-items: center;
+      opacity: 0;
+      transform: translateX(-8px);
+      animation: row-in 0.25s ease forwards;
+      cursor: pointer;
+      transition: background 0.1s, box-shadow 0.1s;
+    }
+
+    .victim-row:hover    { background: rgba(235,213,171,0.03); box-shadow: inset 2px 0 0 var(--dim); }
+    .victim-row.expanded { background: rgba(235,213,171,0.05); box-shadow: inset 2px 0 0 var(--amber); }
+
+    .v-date   { color: var(--dim); font-size: 0.86em; white-space: nowrap; }
+    .v-name   { color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .v-sector { display: flex; align-items: center; overflow: hidden; min-width: 0; }
+
+    .v-sector-tag {
+      display: inline-block;
+      font-size: 0.71em;
+      padding: 1px 5px;
+      border: 1px solid rgba(168,200,138,0.32);
+      color: var(--cyan);
+      background: rgba(168,200,138,0.055);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .v-sector-tag:hover { border-color: var(--cyan); background: rgba(168,200,138,0.13); }
+
+    .v-group { color: var(--amber); font-size: 0.86em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .v-is {
+      font-size: 0.77em;
+      color: var(--is);
+      text-align: right;
+      white-space: nowrap;
+      animation: pulse-is 4s ease-in-out infinite;
+    }
+
+    .v-is.none { color: var(--dark); animation: none; }
+
+    .v-flag        { text-align: center; }
+    .country-code  { font-size: 0.65em; color: var(--dim); letter-spacing: 0.08em; }
+
+    .badge-new {
+      display: inline-block;
+      font-size: 0.62em;
+      padding: 1px 4px;
+      background: var(--green);
+      color: var(--bg);
+      margin-left: 5px;
+      vertical-align: middle;
+      animation: blink-dot 1s step-end infinite;
+    }
+
+    /* ── DETAIL ROW ── */
+    .detail-row {
+      display: none;
+      padding: 10px 12px 13px;
+      background: rgba(235,213,171,0.02);
+      border-left: 2px solid var(--amber);
+      border-bottom: 1px solid var(--dark);
+    }
+
+    .detail-row.open { display: block; animation: row-in 0.2s ease forwards; }
+
+    .detail-desc {
+      font-size: 0.69em;
+      color: var(--dim);
+      line-height: 1.65;
+      margin-bottom: 9px;
+      font-style: italic;
+      border-left: 1px solid var(--dark);
+      padding-left: 8px;
+    }
+
+    .detail-is {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 9px;
+      padding: 6px 10px;
+      border: 1px solid rgba(201,123,175,0.22);
+      background: rgba(201,123,175,0.035);
+    }
+
+    .is-field { display: flex; flex-direction: column; gap: 2px; }
+    .is-label { font-size: 0.55em; letter-spacing: 0.28em; color: rgba(201,123,175,0.55); }
+    .is-val   { font-size: 0.82em; color: var(--is); }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 5px 18px;
+      margin-bottom: 9px;
+    }
+
+    .detail-field { display: flex; flex-direction: column; gap: 1px; }
+    .d-label { font-size: 0.6em; letter-spacing: 0.3em; color: var(--dark); }
+    .d-val   { font-size: 0.7em; color: var(--green); }
+    .d-val a { color: var(--cyan); text-decoration: none; }
+    .d-val a:hover { text-decoration: underline; }
+
+    .detail-links { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .d-btn {
+      font-family: inherit;
+      font-size: 0.58em;
+      letter-spacing: 0.22em;
+      padding: 3px 10px;
+      border: 1px solid var(--dark);
+      color: var(--dim);
+      background: transparent;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: color 0.1s, border-color 0.1s;
+    }
+
+    .d-btn:hover { color: var(--green); border-color: var(--green); }
+
+    .detail-screenshot {
+      float: right;
+      margin: 0 0 8px 14px;
+      width: 136px;
+      height: 86px;
+      object-fit: cover;
+      border: 1px solid var(--dark);
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .detail-screenshot:hover { opacity: 1; }
+
+    /* ── STATS PANEL ── */
+    .stats-panel {
+      width: 196px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg1);
+    }
+
+    .stats-inner {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: none;
+    }
+
+    .stat-block { display: flex; flex-direction: column; gap: 3px; }
+
+    .stat-label {
+      font-size: 0.6em;
+      letter-spacing: 0.28em;
+      color: var(--dim);
+      border-bottom: 1px solid var(--dark);
+      padding-bottom: 3px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .stat-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--dark), transparent);
+    }
+
+    .stat-num { font-size: 2.1em; text-shadow: 0 0 12px rgba(235,213,171,0.35); line-height: 1; }
+    .stat-sub { font-size: 0.57em; color: var(--dark); }
+
+    .g-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+
+    .g-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.71em;
+      padding: 3px 0;
+      border-bottom: 1px solid var(--grid-line);
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+
+    .g-item:hover { opacity: 0.65; }
+
+    .g-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 128px; }
+    .g-name.amber { color: var(--amber); }
+    .g-name.cyan  { color: var(--cyan); }
+    .g-count { color: var(--dark); flex-shrink: 0; margin-left: 4px; }
+
+    .g-bar { height: 2px; opacity: 0.28; margin-top: 2px; transition: width 0.6s ease; }
+    .g-bar.amber { background: var(--amber); }
+    .g-bar.cyan  { background: var(--cyan); }
+
+    /* ── TICKER ── */
+    .ticker-wrap {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--dark);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--bg1);
+    }
+
+    .ticker-tag {
+      height: 100%;
+      padding: 0 12px;
+      background: var(--dim);
+      color: var(--bg);
+      font-size: 0.65em;
+      letter-spacing: 0.4em;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .ticker-track { flex: 1; overflow: hidden; position: relative; height: 100%; }
+
+    .ticker-inner {
+      display: flex;
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      align-items: center;
+      white-space: nowrap;
+      animation: scroll-ticker 90s linear infinite;
+    }
+
+    .t-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 18px; font-size: 0.8em; }
+    .t-name { color: var(--green); }
+    .t-grp  { color: var(--amber); }
+    .t-sect { color: var(--cyan); font-size: 0.88em; }
+    .t-ctry { color: var(--dim); }
+    .t-is   { color: var(--is); font-size: 0.82em; }
+    .t-sep  { color: var(--dark); }
+
+    .msg    { padding: 16px 0; font-size: 0.76em; color: var(--dim); letter-spacing: 0.2em; }
+    .blink  { animation: blink-dot 0.9s step-end infinite; }
+    .err-msg { color: var(--red); font-size: 0.73em; line-height: 1.7; letter-spacing: 0.1em; }
+
+    .no-results {
+      padding: 24px 0;
+      font-size: 0.72em;
+      color: var(--dark);
+      letter-spacing: 0.25em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="tb-title">RANSOMWARE<span>&thinsp;FEED</span></div>
+    <span class="tb-sep">│</span>
+    <span class="f-tag">FILTER</span>
+    <input  type="text"    id="f-search"  class="f-input"   placeholder="SEARCH VICTIM / DOMAIN...">
+    <span class="f-sep">//</span>
+    <select id="f-group"   class="f-select"><option value="">ALL GROUPS</option></select>
+    <select id="f-sector"  class="f-select"><option value="">ALL SECTORS</option></select>
+    <select id="f-country" class="f-select"><option value="">ALL CTRY</option></select>
+    <button id="f-clear"   class="f-btn">CLR</button>
+    <span   id="f-count"   class="f-count">--</span>
+    <span class="tb-sep">│</span>
+    <span class="tb-src">SRC: RANSOMWARE.LIVE</span>
+  </div>
+
+  <!-- BODY -->
+  <div class="body-wrap">
+
+    <!-- FEED -->
+    <div class="feed-panel">
+      <div class="panel-label">
+        <span>┌─ RECENT VICTIMS</span>
+        <span class="panel-label-note" id="tl-note"></span>
+      </div>
+      <div class="stat-ribbon" id="stat-ribbon"></div>
+      <div class="col-heads">
+        <span>DATE</span>
+        <span>TARGET</span>
+        <span>SECTOR</span>
+        <span>THREAT ACTOR</span>
+        <span style="text-align:right">INFOSTEALER</span>
+        <span></span>
+      </div>
+      <div class="victim-scroll">
+        <div class="victim-list" id="victim-list">
+          <div class="msg">FETCHING FEED<span class="blink">_</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-panel">
+      <div class="panel-label">┌─ STATISTICS</div>
+      <div class="stats-inner">
+
+        <div class="stat-block">
+          <div class="stat-label">├─ ENTRIES</div>
+          <div class="stat-num" id="stat-loaded">--</div>
+          <div class="stat-sub" id="stat-sub">--</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-label">├─ GROUPS</div>
+          <div class="stat-num" id="stat-groups">--</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-label">├─ W/ INFOSTEALER</div>
+          <div class="stat-num" id="stat-is" style="color:var(--is);font-size:1.9em;text-shadow:0 0 14px rgba(201,123,175,0.4)">--</div>
+          <div class="stat-sub">OF LOADED ENTRIES</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-label">├─ TOP GROUPS</div>
+          <ul class="g-list" id="group-list">
+            <li class="g-item"><span class="g-name amber">--</span><span class="g-count">--</span></li>
+          </ul>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-label">├─ TOP SECTORS</div>
+          <ul class="g-list" id="sector-list">
+            <li class="g-item"><span class="g-name cyan">--</span><span class="g-count">--</span></li>
+          </ul>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-label">└─ LAST UPDATED</div>
+          <div class="stat-sub" id="last-updated">--</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker-tag">FEED</div>
+    <div class="ticker-track">
+      <div class="ticker-inner" id="ticker-inner">
+        <span class="t-item"><span class="t-name">AWAITING FEED DATA</span></span>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(raw) {
+    if (!raw) return '??-??-??';
+    const d = new Date(raw);
+    if (isNaN(d)) return String(raw).slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function isNew(raw) {
+    if (!raw) return false;
+    const d = new Date(raw);
+    return !isNaN(d) && (Date.now() - d.getTime()) < 6 * 3600 * 1000;
+  }
+
+  function flag(code) {
+    if (!code || !code.trim() || code === '--') return `<span style="color:var(--dark)">--</span>`;
+    return `<span class="country-code">${esc(code.toUpperCase().slice(0, 2))}</span>`;
+  }
+
+  function fmtNum(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+
+  function debounce(fn, ms) {
+    let t;
+    return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+  }
+
+  function normalise(v) {
+    const is = v.infostealer || {};
+    return {
+      name:        v.victim       || v.post_title || v.name || 'UNKNOWN',
+      group:       v.group        || v.group_name || '???',
+      date:        v.attackdate   || v.post_date  || v.date || '',
+      discovered:  v.discovered   || '',
+      country:     v.country      || '--',
+      domain:      v.domain       || v.website    || '',
+      activity:    v.activity     || '',
+      description: v.description  || '',
+      screenshot:  v.screenshot   || '',
+      rlUrl:       v.url          || '',
+      isEmployees: is.employees    || 0,
+      isUsers:     is.users        || 0,
+      isThird:     is.thirdparties || 0,
+    };
+  }
+
+  let allVictims  = [];
+  let filterState = { search: '', group: '', sector: '', country: '' };
+  let openDetail  = null;
+
+  function getFiltered() {
+    const { search, group, sector, country } = filterState;
+    return allVictims.filter(v => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!v.name.toLowerCase().includes(q) && !v.domain.toLowerCase().includes(q)) return false;
+      }
+      if (group   && v.group.toUpperCase() !== group)  return false;
+      if (sector  && v.activity            !== sector) return false;
+      if (country && v.country             !== country) return false;
+      return true;
+    });
+  }
+
+  function isAnyFilterActive() {
+    return Object.values(filterState).some(v => v !== '');
+  }
+
+  function applyFilters() {
+    const filtered = getFiltered();
+    renderRows(filtered);
+    renderStatRibbon(filtered);
+    updateCount(filtered.length);
+  }
+
+  function updateCount(n) {
+    const el     = document.getElementById('f-count');
+    const active = isAnyFilterActive();
+    el.textContent = active ? `${n} / ${allVictims.length} RESULTS` : `${n} RESULTS`;
+    el.className   = 'f-count' + (active ? ' filtered' : '');
+    const note = document.getElementById('tl-note');
+    note.textContent = active ? 'FILTERED' : '';
+    note.className   = 'panel-label-note' + (active ? ' on' : '');
+  }
+
+  function populateSelects(victims) {
+    const groups    = [...new Set(victims.map(v => v.group.toUpperCase()))].sort();
+    const sectors   = [...new Set(victims.map(v => v.activity).filter(Boolean))].sort();
+    const countries = [...new Set(victims.map(v => v.country).filter(c => c && c !== '--'))].sort();
+
+    const rebuild = (id, opts, label) => {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">${label}</option>` +
+        opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+      sel.value     = cur;
+      sel.className = 'f-select' + (cur ? ' active' : '');
+    };
+
+    rebuild('f-group',   groups,    'ALL GROUPS');
+    rebuild('f-sector',  sectors,   'ALL SECTORS');
+    rebuild('f-country', countries, 'ALL CTRY');
+  }
+
+  function setupFilters() {
+    const search  = document.getElementById('f-search');
+    const grpSel  = document.getElementById('f-group');
+    const sectSel = document.getElementById('f-sector');
+    const ctrySel = document.getElementById('f-country');
+    const clrBtn  = document.getElementById('f-clear');
+
+    search.addEventListener('input', debounce(() => {
+      filterState.search = search.value.trim();
+      applyFilters();
+    }, 180));
+
+    grpSel.addEventListener('change', () => {
+      filterState.group = grpSel.value;
+      grpSel.className  = 'f-select' + (grpSel.value ? ' active' : '');
+      applyFilters();
+    });
+
+    sectSel.addEventListener('change', () => {
+      filterState.sector = sectSel.value;
+      sectSel.className  = 'f-select' + (sectSel.value ? ' active' : '');
+      applyFilters();
+    });
+
+    ctrySel.addEventListener('change', () => {
+      filterState.country = ctrySel.value;
+      ctrySel.className   = 'f-select' + (ctrySel.value ? ' active' : '');
+      applyFilters();
+    });
+
+    clrBtn.addEventListener('click', () => {
+      filterState = { search: '', group: '', sector: '', country: '' };
+      search.value = ''; grpSel.value = ''; sectSel.value = ''; ctrySel.value = '';
+      [grpSel, sectSel, ctrySel].forEach(s => s.className = 'f-select');
+      applyFilters();
+    });
+
+    document.getElementById('group-list').addEventListener('click', e => {
+      const item = e.target.closest('[data-group]');
+      if (!item) return;
+      filterState.group = item.dataset.group;
+      grpSel.value      = item.dataset.group;
+      grpSel.className  = 'f-select active';
+      applyFilters();
+    });
+
+    document.getElementById('sector-list').addEventListener('click', e => {
+      const item = e.target.closest('[data-sector]');
+      if (!item) return;
+      filterState.sector = item.dataset.sector;
+      sectSel.value      = item.dataset.sector;
+      sectSel.className  = 'f-select active';
+      applyFilters();
+    });
+  }
+
+  function toggleDetail(rowEl, v) {
+    if (openDetail) {
+      openDetail.row.classList.remove('expanded');
+      openDetail.detail.remove();
+      if (openDetail.row === rowEl) { openDetail = null; return; }
+    }
+
+    rowEl.classList.add('expanded');
+    const d = document.createElement('div');
+    d.className = 'detail-row open';
+
+    const hasIS = v.isEmployees > 0 || v.isUsers > 0 || v.isThird > 0;
+
+    d.innerHTML = `
+      ${v.screenshot ? `<img class="detail-screenshot" src="${esc(v.screenshot)}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+      ${v.description ? `<div class="detail-desc">"${esc(v.description)}"</div>` : ''}
+      ${hasIS ? `
+      <div class="detail-is">
+        <div class="is-field"><span class="is-label">EMPLOYEES</span><span class="is-val">${fmtNum(v.isEmployees) || '--'}</span></div>
+        <div class="is-field"><span class="is-label">USERS</span><span class="is-val">${fmtNum(v.isUsers) || '--'}</span></div>
+        <div class="is-field"><span class="is-label">THIRD PARTIES</span><span class="is-val">${fmtNum(v.isThird) || '--'}</span></div>
+      </div>` : ''}
+      <div class="detail-grid">
+        <div class="detail-field">
+          <span class="d-label">DOMAIN</span>
+          <span class="d-val">${v.domain ? `<a href="https://${esc(v.domain)}" target="_blank" rel="noopener">${esc(v.domain)}</a>` : '--'}</span>
+        </div>
+        <div class="detail-field">
+          <span class="d-label">SECTOR</span>
+          <span class="d-val" style="color:var(--cyan)">${esc(v.activity) || '--'}</span>
+        </div>
+        <div class="detail-field">
+          <span class="d-label">COUNTRY</span>
+          <span class="d-val">${esc(v.country)}</span>
+        </div>
+        <div class="detail-field">
+          <span class="d-label">ATTACK DATE</span>
+          <span class="d-val">${fmtDate(v.date)}</span>
+        </div>
+        <div class="detail-field">
+          <span class="d-label">DISCOVERED</span>
+          <span class="d-val">${fmtDate(v.discovered) || '--'}</span>
+        </div>
+      </div>
+      <div class="detail-links">
+        ${v.rlUrl      ? `<a class="d-btn" href="${esc(v.rlUrl)}"      target="_blank" rel="noopener">RANSOMWARE.LIVE ↗</a>` : ''}
+        ${v.screenshot ? `<a class="d-btn" href="${esc(v.screenshot)}" target="_blank" rel="noopener">SCREENSHOT ↗</a>`      : ''}
+      </div>`;
+
+    rowEl.insertAdjacentElement('afterend', d);
+    openDetail = { row: rowEl, detail: d };
+  }
+
+  function isCell(v) {
+    const total = v.isEmployees + v.isUsers + v.isThird;
+    if (!total) return `<span class="v-is none">--</span>`;
+    return `<span class="v-is" title="EMP:${v.isEmployees} | USR:${v.isUsers} | 3P:${v.isThird}">◆ ${fmtNum(total)}</span>`;
+  }
+
+  function renderRows(victims) {
+    openDetail = null;
+    const list = document.getElementById('victim-list');
+
+    if (!victims.length) {
+      list.innerHTML = '<div class="no-results">[ NO RESULTS MATCH FILTER ]</div>';
+      return;
+    }
+
+    list.innerHTML = victims.map((v, i) => `
+      <div class="victim-row" id="r${i}" style="animation-delay:${Math.min(i, 40) * 18}ms">
+        <span class="v-date">${fmtDate(v.date)}</span>
+        <span class="v-name" title="${esc(v.name)}">
+          ${esc(v.name.toUpperCase())}${isNew(v.date) ? '<span class="badge-new">NEW</span>' : ''}
+        </span>
+        <span class="v-sector">
+          ${v.activity
+            ? `<span class="v-sector-tag" title="${esc(v.activity)}">${esc(v.activity)}</span>`
+            : `<span style="color:var(--dark)">--</span>`}
+        </span>
+        <span class="v-group" title="${esc(v.group)}">${esc(v.group.toUpperCase())}</span>
+        ${isCell(v)}
+        <span class="v-flag" title="${esc(v.country)}">${flag(v.country)}</span>
+      </div>`).join('');
+
+    list.onclick = e => {
+      const tag = e.target.closest('.v-sector-tag');
+      if (tag) {
+        e.stopPropagation();
+        filterState.sector = tag.title;
+        const sel = document.getElementById('f-sector');
+        sel.value = tag.title;
+        sel.className = 'f-select active';
+        applyFilters();
+        return;
+      }
+      const row = e.target.closest('.victim-row');
+      if (!row) return;
+      const idx = parseInt(row.id.slice(1));
+      if (!isNaN(idx)) toggleDetail(row, victims[idx]);
+    };
+  }
+
+  function renderStats(victims) {
+    const countriesCount = new Set(victims.map(v => v.country).filter(c => c && c !== '--')).size;
+    document.getElementById('stat-loaded').textContent = victims.length;
+    document.getElementById('stat-sub').textContent    = `${countriesCount} COUNTRIES`;
+
+    const isCount = victims.filter(v => v.isEmployees > 0 || v.isUsers > 0 || v.isThird > 0).length;
+    document.getElementById('stat-is').textContent = isCount;
+
+    const groups = {}, sectors = {};
+    victims.forEach(v => {
+      const g = v.group.toUpperCase();
+      groups[g] = (groups[g] || 0) + 1;
+      if (v.activity) sectors[v.activity] = (sectors[v.activity] || 0) + 1;
+    });
+
+    const sortG = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+    document.getElementById('stat-groups').textContent = sortG.length;
+
+    const maxG = sortG[0]?.[1] || 1;
+    document.getElementById('group-list').innerHTML = sortG.slice(0, 9).map(([name, n]) => `
+      <li data-group="${esc(name)}" title="Click to filter">
+        <div class="g-item">
+          <span class="g-name amber">${esc(name)}</span>
+          <span class="g-count">${n}</span>
+        </div>
+        <div class="g-bar amber" style="width:${Math.round((n / maxG) * 100)}%"></div>
+      </li>`).join('');
+
+    const sortS = Object.entries(sectors).sort((a, b) => b[1] - a[1]);
+    const maxS  = sortS[0]?.[1] || 1;
+    document.getElementById('sector-list').innerHTML = sortS.length
+      ? sortS.slice(0, 7).map(([name, n]) => `
+          <li data-sector="${esc(name)}" title="Click to filter">
+            <div class="g-item">
+              <span class="g-name cyan">${esc(name)}</span>
+              <span class="g-count">${n}</span>
+            </div>
+            <div class="g-bar cyan" style="width:${Math.round((n / maxS) * 100)}%"></div>
+          </li>`).join('')
+      : '<li class="g-item"><span class="g-name cyan">--</span></li>';
+
+    document.getElementById('last-updated').textContent =
+      new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  }
+
+  function renderStatRibbon(filtered) {
+    const el = document.getElementById('stat-ribbon');
+    if (!el) return;
+
+    const now      = new Date();
+    const todayKey = now.toISOString().slice(0, 10);
+    const ydKey    = new Date(now - 86400000).toISOString().slice(0, 10);
+
+    const buckets = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    filtered.forEach(v => { const k = fmtDate(v.date); if (k in buckets) buckets[k]++; });
+
+    const todayCount = buckets[todayKey] || 0;
+    const ydCount    = buckets[ydKey]    || 0;
+    const delta      = todayCount - ydCount;
+    const vals7      = Object.values(buckets).slice(-7);
+    const total7     = vals7.reduce((s, n) => s + n, 0);
+    const avg7       = (total7 / 7).toFixed(1);
+
+    const [peakKey, peakN] = Object.entries(buckets).reduce((a, b) => b[1] > a[1] ? b : a, ['--', 0]);
+
+    const cutoff = Date.now() - 2 * 3600 * 1000;
+    const recent = filtered.filter(v => v.date && new Date(v.date).getTime() > cutoff).length;
+
+    const grpMap = {}, sectMap = {};
+    filtered.forEach(v => {
+      const g = v.group.toUpperCase();
+      grpMap[g] = (grpMap[g] || 0) + 1;
+      if (v.activity) sectMap[v.activity] = (sectMap[v.activity] || 0) + 1;
+    });
+    const [topGroup,  topGroupN ] = Object.entries(grpMap ).sort((a, b) => b[1] - a[1])[0] || ['--', 0];
+    const [topSector, topSectorN] = Object.entries(sectMap).sort((a, b) => b[1] - a[1])[0] || ['--', 0];
+    const countries = new Set(filtered.map(v => v.country).filter(c => c && c !== '--')).size;
+
+    const deltaStr   = delta > 0 ? `▲ +${delta}` : delta < 0 ? `▼ ${delta}` : `± 0`;
+    const deltaClass = delta > 0 ? 'amber' : delta < 0 ? 'red' : 'dim';
+
+    const SPARK_LINE = '#8BAE66', SPARK_FILL = 'rgba(98,129,65,0.18)';
+    const SW = 80, SH = 26;
+    const maxSpark = Math.max(...vals7, 1);
+    const pts = vals7.map((n, i) => {
+      const x = vals7.length > 1 ? (i / (vals7.length - 1)) * SW : SW / 2;
+      const y = SH - (n / maxSpark) * SH;
+      return [x.toFixed(1), y.toFixed(1)];
+    });
+    const spark = `<svg viewBox="0 0 ${SW} ${SH}" style="width:${SW}px;height:${SH}px;display:block;margin-top:3px;">
+      <path d="M 0,${SH} ${pts.map(p => `L ${p[0]},${p[1]}`).join(' ')} L ${SW},${SH} Z" fill="${SPARK_FILL}" stroke="none"/>
+      <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="${SPARK_LINE}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>`;
+
+    el.innerHTML = `
+      <div class="stat-chip">
+        <span class="sc-label">LAST 2H</span>
+        <span class="sc-val ${recent > 0 ? 'red' : 'dim'}">${recent}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">TODAY</span>
+        <span class="sc-val">${todayCount}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">VS YESTERDAY</span>
+        <span class="sc-val ${deltaClass}">${deltaStr}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">7-DAY TOTAL</span>
+        <span class="sc-val">${total7}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">DAILY AVG</span>
+        <span class="sc-val dim">${avg7}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">PEAK DAY</span>
+        <span class="sc-val sm">${peakKey === '--' ? '--' : peakKey.slice(5)}&nbsp;<span class="sc-sub">(${peakN})</span></span>
+      </div>
+      <div class="stat-chip group">
+        <span class="sc-label">TOP GROUP</span>
+        <span class="sc-val amber sm">${esc(topGroup)}&nbsp;<span class="sc-sub">·${topGroupN}</span></span>
+      </div>
+      <div class="stat-chip sector">
+        <span class="sc-label">TOP SECTOR</span>
+        <span class="sc-val cyan xs">${esc(topSector)}&nbsp;<span class="sc-sub">·${topSectorN}</span></span>
+      </div>
+      <div class="stat-chip">
+        <span class="sc-label">COUNTRIES</span>
+        <span class="sc-val">${countries}</span>
+      </div>
+      <div class="stat-chip grow">
+        <span class="sc-label">7-DAY TREND</span>
+        ${spark}
+      </div>`;
+  }
+
+  function renderTicker(victims) {
+    const inner = document.getElementById('ticker-inner');
+    const slice = victims.slice(0, 60);
+    const markup = slice.map(v => {
+      const isTotal = v.isEmployees + v.isUsers + v.isThird;
+      return `<span class="t-item">
+        <span class="t-name">${esc(v.name.toUpperCase())}</span>
+        <span class="t-sep">//</span>
+        <span class="t-grp">${esc(v.group.toUpperCase())}</span>
+        ${v.activity ? `<span class="t-sep">//</span><span class="t-sect">${esc(v.activity.toUpperCase())}</span>` : ''}
+        <span class="t-sep">//</span>
+        <span class="t-ctry">${esc(v.country)}</span>
+        ${isTotal ? `<span class="t-sep">//</span><span class="t-is">◆ IS:${fmtNum(isTotal)}</span>` : ''}
+        <span class="t-sep">&nbsp;░&nbsp;</span>
+      </span>`;
+    }).join('');
+    inner.innerHTML = markup + markup;
+    inner.style.animationDuration = `${Math.max(40, slice.length * 2.5)}s`;
+  }
+
+  function renderVictims(raw) {
+    allVictims = raw.map(normalise);
+    populateSelects(allVictims);
+    renderStats(allVictims);
+    renderTicker(allVictims);
+    applyFilters();
+  }
+
+  function renderError(msg) {
+    document.getElementById('victim-list').innerHTML = `
+      <div class="msg"><div class="err-msg">
+        [ERR] FEED UNAVAILABLE<br>${esc(msg)}<br><br>RETRYING<span class="blink">_</span>
+      </div></div>`;
+  }
+
+  const API_V2 = 'https://api.ransomware.live/v2/recentvictims';
+  const API_V1 = 'https://api.ransomware.live/recentvictims';
+
+  const SOURCES = [
+    API_V2,
+    API_V1,
+    `https://corsproxy.io/?${encodeURIComponent(API_V2)}`,
+    `https://corsproxy.io/?${encodeURIComponent(API_V1)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(API_V2)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(API_V1)}`,
+  ];
+
+  async function fetchFeed() {
+    for (const url of SOURCES) {
+      try {
+        const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const arr  = Array.isArray(data) ? data : (data.victims || data.data || []);
+        if (arr.length) return arr;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  async function refresh() {
+    const data = await fetchFeed();
+    if (data) renderVictims(data);
+    else renderError('all sources exhausted — check network tab');
+  }
+
+  setupFilters();
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000);
+</script>
+</body>
+</html>
